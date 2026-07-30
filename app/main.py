@@ -1,21 +1,26 @@
-"""
-app/main.py
+from flask import Flask
+from flask_jwt_extended import JWTManager
+from flask_cors import CORS  # 1. Importation de Flask-CORS
 
-Flask application entry point.
+app = Flask(__name__)
 
-Run locally:
-    python app/main.py
+# 2. Activation de CORS pour autoriser toutes les requêtes (HTTP et file://)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-Or via Docker / docker-compose (see project root).
-"""
-import os
-from app import create_app
+# Clé secrète pour signer les jetons JWT
+app.config["JWT_SECRET_KEY"] = "super-secret-key"
+jwt = JWTManager(app)
 
-app = create_app()
+# Importer et enregistrer les modules (Blueprints)
+from app.auth import auth_bp
+from app.destinations import destinations_bp
+from app.recommendations import recommendations_bp
+from app.itineraries import itineraries_bp
+
+app.register_blueprint(auth_bp)
+app.register_blueprint(destinations_bp)
+app.register_blueprint(recommendations_bp)
+app.register_blueprint(itineraries_bp)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    # Enable debug mode only when explicitly requested (e.g. FLASK_DEBUG=1).
-    # Never enable debug in production – it exposes an interactive debugger.
-    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
-    app.run(host="0.0.0.0", port=port, debug=debug)
+    app.run(debug=True, port=5000)

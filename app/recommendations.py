@@ -1,66 +1,49 @@
-"""
-app/recommendations.py
+import os
+import json
+from flask import Blueprint, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
-Personalised destination recommendations.
+recommendations_bp = Blueprint('recommendations', __name__)
 
-Routes
-------
-GET /recommendations
-    Returns destinations that best match the authenticated user's preferences.
-    Requires a valid JWT in the Authorization header.
-"""
-from flask import Blueprint, request, jsonify
+USERS_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'users.json')
+DESTINATIONS_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'destinations.json')
 
-from app.auth import get_current_user
-from app.models import get_all_destinations, get_user_by_username
+def load_json(path):
+    if not os.path.exists(path):
+        return []
+    with open(path, 'r', encoding='utf-8') as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []
 
-recommendations_bp = Blueprint("recommendations", __name__)
-
-
-@recommendations_bp.route("/recommendations", methods=["GET"])
+@recommendations_bp.route('/recommendations', methods=['GET'])
+@jwt_required()
 def get_recommendations():
-    """Return personalised destination recommendations for the logged-in user.
+    # Récupération de l'ID de l'utilisateur connecté depuis le token JWT
+    current_user_id = int(get_jwt_identity())
 
-    Recommendations are derived by scoring each destination against the
-    user's preference tags.  Destinations are returned in descending score
-    order.  An optional *limit* query parameter caps the number of results
-    (default 5).
+    users = load_json(USERS_FILE)
+    destinations = load_json(DESTINATIONS_FILE)
 
-    Requires: Authorization: ******
-    """
-    username = get_current_user(request)
-    if not username:
-        return jsonify({"error": "authentication required"}), 401
-
-    user = get_user_by_username(username)
+    user = next((u for u in users if u['id'] == current_user_id), None)
     if not user:
-        return jsonify({"error": "user not found"}), 404
+        return jsonify({"error": "Utilisateur non trouvé"}), 404
 
-    preferences = [p.lower() for p in user.get("preferences", [])]
+    user_prefs = set(user.get('preferences', []))
 
-    # Parse optional limit parameter
-    try:
-        limit = int(request.args.get("limit", 5))
-    except ValueError:
-        return jsonify({"error": "limit must be an integer"}), 400
-
-    destinations = get_all_destinations()
-
-    # Score each destination: +1 for every preference tag that matches
-    scored = []
+    # Filtrage des destinations ayant au moins un tag en commun avec les préférences de l'utilisateur
+    recommended = []
     for dest in destinations:
-        dest_tags = [t.lower() for t in dest.get("tags", [])]
-        score = sum(1 for pref in preferences if pref in dest_tags)
-        scored.append((score, dest))
+        dest_tags = set(dest.get('tags', []))
+        if user_prefs.intersection(dest_tags):
+            recommended.append(dest)
 
-    # Sort by score descending, then by name for stable ordering
-    scored.sort(key=lambda x: (-x[0], x[1].get("name", "")))
+    # Si aucune correspondance, on renvoie toutes les destinations par défaut
+    if not recommended:
+        recommended = destinations
 
-    # Build result list, including the match score for transparency
-    results = []
-    for score, dest in scored[:limit]:
-        entry = dict(dest)
-        entry["match_score"] = score
-        results.append(entry)
-
-    return jsonify(results), 200
+    return jsonify({
+        "user_id": current_user_id,
+        "recommendations": recommended
+    }), 200

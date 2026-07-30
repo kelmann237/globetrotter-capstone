@@ -1,73 +1,52 @@
-"""
-app/destinations.py
-
-Destination search endpoint.
-
-Routes
-------
-GET /destinations?q=paris&tag=food&continent=Europe
-    Returns destinations that match any of the provided query parameters.
-    All parameters are optional; omitting them returns the full catalogue.
-"""
+import os
+import json
 from flask import Blueprint, request, jsonify
 
-from app.models import get_all_destinations
+destinations_bp = Blueprint('destinations', __name__)
 
-destinations_bp = Blueprint("destinations", __name__)
+DESTINATIONS_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'destinations.json')
 
-
-@destinations_bp.route("/destinations", methods=["GET"])
-def search_destinations():
-    """Search destinations by name keyword, tag, and/or continent.
-
-    Query parameters (all optional):
-        q          – free-text search against name, country, and description
-        tag        – filter by a single interest tag (e.g. "beach")
-        continent  – filter by continent name (e.g. "Europe")
-        max_cost   – filter by maximum average daily cost (integer)
-
-    Returns a JSON list of matching destination objects.
-    """
-    q = request.args.get("q", "").strip().lower()
-    tag = request.args.get("tag", "").strip().lower()
-    continent = request.args.get("continent", "").strip().lower()
-    max_cost_str = request.args.get("max_cost", "").strip()
-
-    max_cost = None
-    if max_cost_str:
+def load_destinations():
+    if not os.path.exists(DESTINATIONS_FILE):
+        return []
+    with open(DESTINATIONS_FILE, 'r', encoding='utf-8') as f:
         try:
-            max_cost = int(max_cost_str)
-        except ValueError:
-            return jsonify({"error": "max_cost must be an integer"}), 400
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []
 
-    destinations = get_all_destinations()
-    results = []
+def save_destinations(destinations):
+    with open(DESTINATIONS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(destinations, f, indent=2)
 
-    for dest in destinations:
-        # Free-text filter
-        if q:
-            searchable = " ".join([
-                dest.get("name", ""),
-                dest.get("country", ""),
-                dest.get("description", ""),
-            ]).lower()
-            if q not in searchable:
-                continue
+@destinations_bp.route('/destinations', methods=['GET'])
+def get_destinations():
+    destinations = load_destinations()
+    return jsonify(destinations), 200
 
-        # Tag filter
-        if tag and tag not in [t.lower() for t in dest.get("tags", [])]:
-            continue
+@destinations_bp.route('/destinations', methods=['POST'])
+def add_destination():
+    data = request.get_json() or {}
+    name = data.get('name')
+    country = data.get('country')
 
-        # Continent filter
-        if continent and continent != dest.get("continent", "").lower():
-            continue
+    if not name or not country:
+        return jsonify({"error": "Le nom et le pays sont requis"}), 400
 
-        # Cost filter – skip destinations that have no cost information or exceed the limit
-        if max_cost is not None:
-            cost = dest.get("avg_cost_per_day")
-            if cost is None or cost > max_cost:
-                continue
+    destinations = load_destinations()
+    new_id = max([d['id'] for d in destinations], default=0) + 1
 
-        results.append(dest)
+    new_dest = {
+        "id": new_id,
+        "name": name,
+        "country": country,
+        "region": data.get('region', ''),
+        "tags": data.get('tags', []),
+        "description": data.get('description', ''),
+        "budget_level": data.get('budget_level', 'medium')
+    }
 
-    return jsonify(results), 200
+    destinations.append(new_dest)
+    save_destinations(destinations)
+
+    return jsonify(new_dest), 201

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voyageur — Vos voyages, simplifiés</title>
+    
+    <!-- CSS externe -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- JS externe chargé en différé -->
+    <script src="app.js" defer></script>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-brand">
+            <span class="brand-icon">✈️</span>
+            <span class="brand-text">Voyageur</span>
+        </div>
+        
+        <ul class="nav-links" id="nav-links">
+            <li><a href="#" data-view="destinations" class="nav-link active">Destinations</a></li>
+            <li><a href="#" data-view="recommendations" class="nav-link">Recommandations</a></li>
+            <li><a href="#" data-view="itineraries" class="nav-link">Mes Itinéraires</a></li>
+            <li><a href="#" data-view="auth" class="nav-link" id="nav-auth">Connexion</a></li>
+            <li id="user-info-item" style="display: none;">
+                <span id="user-display" class="user-display"></span>
+            </li>
+            <li><a href="#" class="nav-link nav-logout" id="nav-logout" style="display: none;">Déconnexion</a></li>
+        </ul>
+        
+        <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-container">
+
+        <!-- Vue Authentification -->
+        <section id="auth-view" class="view">
+            <div class="auth-container">
+                <div class="auth-tabs">
+                    <button type="button" class="auth-tab active" data-tab="login">Connexion</button>
+                    <button type="button" class="auth-tab" data-tab="register">Inscription</button>
+                </div>
+
+                <!-- Formulaire de Connexion -->
+                <form id="login-form" class="auth-form">
+                    <h2>Connexion</h2>
+                    <div class="form-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" name="email" placeholder="votre@email.com" autocomplete="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Mot de passe</label>
+                        <input type="password" id="login-password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Se connecter</button>
+                    <p class="form-message" id="login-message"></p>
+                </form>
+
+                <!-- Formulaire d'Inscription -->
+                <form id="register-form" class="auth-form" style="display: none;">
+                    <h2>Inscription</h2>
+                    <div class="form-group">
+                        <label for="register-name">Nom complet</label>
+                        <input type="text" id="register-name" name="name" placeholder="Jean Dupont" autocomplete="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-email">Email</label>
+                        <input type="email" id="register-email" name="email" placeholder="votre@email.com" autocomplete="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Mot de passe</label>
+                        <input type="password" id="register-password" name="password" placeholder="••••••••" autocomplete="new-password" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-preferences">Préférences de voyage</label>
+                        <textarea id="register-preferences" name="preferences" rows="3" placeholder="Plage, montagne, culture..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Créer un compte</button>
+                    <p class="form-message" id="register-message"></p>
+                </form>
+            </div>
+        </section>
+
+        <!-- Vue Catalogue Destinations -->
+        <section id="destinations-view" class="view active">
+            <div class="view-header">
+                <h1>Catalogue des Destinations</h1>
+                <p class="view-subtitle">Découvrez des lieux incroyables à travers le monde</p>
+            </div>
+
+            <div class="filters-bar">
+                <div class="search-box">
+                    <input type="text" id="dest-search" placeholder="Rechercher une destination...">
+                    <span class="search-icon">🔍</span>
+                </div>
+                <select id="dest-region-filter" class="filter-select">
+                    <option value="">Toutes les régions</option>
+                    <option value="europe">Europe</option>
+                    <option value="asie">Asie</option>
+                    <option value="amerique">Amérique</option>
+                    <option value="afrique">Afrique</option>
+                    <option value="oceanie">Océanie</option>
+                </select>
+                <select id="dest-budget-filter" class="filter-select">
+                    <option value="">Tous les budgets</option>
+                    <option value="$">$ Économique</option>
+                    <option value="$$">$$ Modéré</option>
+                    <option value="$$$">$$$ Luxe</option>
+                </select>
+            </div>
+
+            <div id="destinations-grid" class="cards-grid">
+                <div class="loading-spinner">Chargement des destinations...</div>
+            </div>
+        </section>
+
+        <!-- Vue Recommandations -->
+        <section id="recommendations-view" class="view">
+            <div class="view-header">
+                <h1>Recommandations Personnalisées</h1>
+                <p class="view-subtitle">Dites-nous ce que vous aimez, on trouve l'endroit parfait</p>
+            </div>
+
+            <div class="quiz-container">
+                <form id="recommendations-form" class="quiz-form">
+                    <div class="quiz-group">
+                        <label>Niveau de budget</label>
+                        <div class="quiz-options">
+                            <label class="quiz-option">
+                                <input type="radio" name="budget" value="$" required>
+                                <span class="option-card">$ Économique</span>
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="budget" value="$$">
+                                <span class="option-card">$$ Modéré</span>
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="budget" value="$$$">
+                                <span class="option-card">$$$ Luxe</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quiz-group">
+                        <label for="rec-region">Région souhaitée</label>
+                        <select id="rec-region" name="region" required>
+                            <option value="">Choisir une région</option>
+                            <option value="europe">Europe</option>
+                            <option value="asie">Asie</option>
+                            <option value="amerique">Amérique</option>
+                            <option value="afrique">Afrique</option>
+                            <option value="oceanie">Océanie</option>
+                        </select>
+                    </div>
+
+                    <div class="quiz-group">
+                        <label>Activités préférées</label>
+                        <div class="quiz-checkboxes">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="activities" value="plage">
+                                <span>🏖️ Plage</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="activities" value="montagne">
+                                <span>🏔️ Montagne</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="activities" value="culture">
+                                <span>🏛️ Culture</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="activities" value="gastronomie">
+                                <span>🍽️ Gastronomie</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="activities" value="aventure">
+                                <span>🧗 Aventure</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="activities" value="detente">
+                                <span>🧘 Détente</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-full">Obtenir mes recommandations</button>
+                </form>
+
+                <div id="recommendations-results" class="cards-grid" style="margin-top: 2rem;">
+                    <!-- Résultats injectés dynamiquement via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Vue Mes Itinéraires -->
+        <section id="itineraries-view" class="view">
+            <div class="view-header">
+                <h1>Mes Itinéraires</h1>
+                <p class="view-subtitle">Planifiez et consultez vos voyages</p>
+            </div>
+
+            <div class="itinerary-layout">
+                <!-- Formulaire de création -->
+                <div class="itinerary-form-panel">
+                    <h3>Nouveau voyage</h3>
+                    <form id="itinerary-form">
+                        <div class="form-group">
+                            <label for="it-destination">Destination</label>
+                            <select id="it-destination" name="destination_id" required>
+                                <option value="">Charger les destinations...</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="it-start">Date de début</label>
+                                <input type="date" id="it-start" name="start_date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="it-end">Date de fin</label>
+                                <input type="date" id="it-end" name="end_date" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="it-notes">Notes</label>
+                            <textarea id="it-notes" name="notes" rows="3" placeholder="Détails du voyage..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">Créer l'itinéraire</button>
+                        <p class="form-message" id="itinerary-message"></p>
+                    </form>
+                </div>
+
+                <!-- Liste des itinéraires -->
+                <div class="itinerary-list-panel">
+                    <h3>Mes voyages planifiés</h3>
+                    <div id="itineraries-list" class="itineraries-list">
+                        <div class="loading-spinner">Chargement...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>© 2026 Voyageur — Propulsé par Flask & Vanilla JS</p>
+    </footer>
+
+</body>
+</html>

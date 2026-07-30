@@ -1,117 +1,99 @@
-"""
-app/auth.py
+import os
+import json
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import create_access_token
 
-User registration, login, and JWT handling.
+auth_bp = Blueprint('auth', __name__)
 
-Routes
-------
-POST /register  – create a new user account
-POST /login     – authenticate and return a JWT token
-"""
-import uuid
-import datetime
+# Chemin vers le fichier users.json
+USERS_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'users.json')
 
-import jwt
-from flask import Blueprint, request, jsonify, current_app
-from werkzeug.security import generate_password_hash, check_password_hash
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        return []
+    with open(USERS_FILE, 'r', encoding='utf-8') as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []
 
-from app.models import get_user_by_username, save_user
+def save_users(users):
+    # Crée le dossier 'data' automatiquement s'il n'existe pas
+    os.makedirs(os.path.dirname(USERS_FILE), exist_ok=True)
+    with open(USERS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(users, f, indent=2, ensure_ascii=False)
 
-auth_bp = Blueprint("auth", __name__)
-
-
-# ---------------------------------------------------------------------------
-# Helper – JWT utilities
-# ---------------------------------------------------------------------------
-
-def create_token(username: str, secret: str) -> str:
-    """Return a signed JWT for *username* valid for 24 hours."""
-    now = datetime.datetime.now(datetime.timezone.utc)
-    payload = {
-        "sub": username,
-        "iat": now,
-        "exp": now + datetime.timedelta(hours=24),
-    }
-    return jwt.encode(payload, secret, algorithm="HS256")
-
-
-def decode_token(token: str, secret: str) -> dict:
-    """Decode and verify *token*. Raises jwt.PyJWTError on failure."""
-    return jwt.decode(token, secret, algorithms=["HS256"])
-
-
-def get_current_user(request_obj) -> str | None:
-    """Extract and validate the JWT from the Authorization header.
-
-    Returns the username (subject claim) or None if the token is missing /
-    invalid.
-    """
-    auth_header = request_obj.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return None
-    token = auth_header.split(" ", 1)[1]
-    try:
-        payload = decode_token(token, current_app.config["SECRET_KEY"])
-        return payload.get("sub")
-    except jwt.PyJWTError:
-        return None
-
-
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
-@auth_bp.route("/register", methods=["POST"])
+@auth_bp.route('/register', methods=['POST'])
 def register():
-    """Register a new user.
-
-    Expected JSON body:
-        { "username": "alice", "password": "s3cr3t", "preferences": ["beach", "food"] }
-
-    Returns 201 on success, 400 on validation errors, 409 if the username is
-    already taken.
-    """
     data = request.get_json(silent=True) or {}
-    username = data.get("username", "").strip()
-    password = data.get("password", "")
-    preferences = data.get("preferences", [])  # optional list of interest tags
+    
+    print("----------------------------------------")
+    print("Données reçues du Front-End :", data)
+    print("----------------------------------------")
 
-    if not username or not password:
-        return jsonify({"error": "username and password are required"}), 400
+    email = data.get('email')
+    password = data.get('password')
+    name = data.get('name', '')
+    preferences = data.get('preferences', [])
 
-    if get_user_by_username(username):
-        return jsonify({"error": "username already exists"}), 409
+    if not email or not password:
+        print("❌ ÉCHEC : 'email' ou 'password' est vide/manquant.")
+        return jsonify({"error": "L'email et le mot de passe sont obligatoires"}), 400
 
-    user = {
-        "id": str(uuid.uuid4()),
-        "username": username,
-        # Store a Werkzeug password hash – never store plain-text passwords.
-        "password_hash": generate_password_hash(password),
-        "preferences": preferences,
+    users = load_users()
+    if any(u.get('email') == email for u in users):
+        print("❌ ÉCHEC : Email déjà utilisé.")
+        return jsonify({"error": "Cet email est déjà utilisé"}), 400
+
+    new_id = max([u.get('id', 0) for u in users], default=0) + 1
+    new_user = {
+        "id": new_id,
+        "email": email,
+        "password": password,
+        "name": name,
+        "preferences": preferences
     }
-    save_user(user)
-    return jsonify({"message": "user registered successfully", "username": username}), 201
 
+    users.append(new_user)
+    save_users(users)
+    
+    print("✅ SUCCÈS : Utilisateur enregistré dans users.json !")
 
-@auth_bp.route("/login", methods=["POST"])
+    return jsonify({
+        "message": "Utilisateur créé avec succès",
+        "user": {
+            "id": new_user["id"],
+            "email": new_user["email"],
+            "name": new_user["name"],
+            "preferences": new_user["preferences"]
+        }
+    }), 201
+
+@auth_bp.route('/login', methods=['POST'])
 def login():
-    """Authenticate a user and return a JWT.
-
-    Expected JSON body:
-        { "username": "alice", "password": "s3cr3t" }
-
-    Returns 200 with a token on success, 400/401 on failure.
-    """
     data = request.get_json(silent=True) or {}
-    username = data.get("username", "").strip()
-    password = data.get("password", "")
+    email = data.get('email')
+    password = data.get('password')
 
-    if not username or not password:
-        return jsonify({"error": "username and password are required"}), 400
+    if not email or not password:
+        return jsonify({"error": "L'email et le mot de passe sont obligatoires"}), 400
 
-    user = get_user_by_username(username)
-    if not user or not check_password_hash(user["password_hash"], password):
-        return jsonify({"error": "invalid credentials"}), 401
+    users = load_users()
+    user = next((u for u in users if u.get('email') == email and u.get('password') == password), None)
 
-    token = create_token(username, current_app.config["SECRET_KEY"])
-    return jsonify({"token": token}), 200
+    if not user:
+        return jsonify({"error": "Identifiants invalides"}), 401
+
+    user_id_str = str(user['id'])
+    access_token = create_access_token(identity=user_id_str)
+
+    return jsonify({
+        "message": "Connexion réussie",
+        "access_token": access_token,
+        "token": access_token,  # Doublon utile pour éviter tout problème avec le JS
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"]
+        }
+    }), 200
