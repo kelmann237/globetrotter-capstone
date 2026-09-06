@@ -1,66 +1,70 @@
-"""
-app/recommendations.py
+import json
+from pathlib import Path
 
-Personalised destination recommendations.
+from fastapi import APIRouter, Depends
 
-Routes
-------
-GET /recommendations
-    Returns destinations that best match the authenticated user's preferences.
-    Requires a valid JWT in the Authorization header.
-"""
-from flask import Blueprint, request, jsonify
-
-from app.auth import get_current_user
-from app.models import get_all_destinations, get_user_by_username
-
-recommendations_bp = Blueprint("recommendations", __name__)
+from .security import get_current_user
 
 
-@recommendations_bp.route("/recommendations", methods=["GET"])
-def get_recommendations():
-    """Return personalised destination recommendations for the logged-in user.
+router = APIRouter(
+    prefix="/recommendations",
+    tags=["Recommendations"]
+)
 
-    Recommendations are derived by scoring each destination against the
-    user's preference tags.  Destinations are returned in descending score
-    order.  An optional *limit* query parameter caps the number of results
-    (default 5).
+DATA_FILE = Path(__file__).parent.parent / "data" / "data.json"
 
-    Requires: Authorization: ******
-    """
-    username = get_current_user(request)
-    if not username:
-        return jsonify({"error": "authentication required"}), 401
 
-    user = get_user_by_username(username)
-    if not user:
-        return jsonify({"error": "user not found"}), 404
+def load_data():
+    with open(DATA_FILE, "r", encoding="utf-8") as file:
+        return json.load(file)
 
-    preferences = [p.lower() for p in user.get("preferences", [])]
 
-    # Parse optional limit parameter
-    try:
-        limit = int(request.args.get("limit", 5))
-    except ValueError:
-        return jsonify({"error": "limit must be an integer"}), 400
+@router.get("/")
+def get_recommendations(
+    current_user: dict = Depends(get_current_user)
+):
+    data = load_data()
 
-    destinations = get_all_destinations()
+    destinations = data["destinations"]
 
-    # Score each destination: +1 for every preference tag that matches
-    scored = []
-    for dest in destinations:
-        dest_tags = [t.lower() for t in dest.get("tags", [])]
-        score = sum(1 for pref in preferences if pref in dest_tags)
-        scored.append((score, dest))
+    user_preferences = [
+        preference.lower()
+        for preference in current_user.get("preferences", [])
+    ]
 
-    # Sort by score descending, then by name for stable ordering
-    scored.sort(key=lambda x: (-x[0], x[1].get("name", "")))
+    user_budget = current_user.get("budget")
 
-    # Build result list, including the match score for transparency
-    results = []
-    for score, dest in scored[:limit]:
-        entry = dict(dest)
-        entry["match_score"] = score
-        results.append(entry)
+    recommendations = []
 
-    return jsonify(results), 200
+    for destination in destinations:
+        score = 0
+
+        # Préférence de catégorie
+        if destination["category"].lower() in user_preferences:
+            score += 50
+
+        # Budget préféré
+        if user_budget and destination["budget"].lower() == user_budget.lower():
+            score += 30
+
+        # Note de la destination
+        score += destination["rating"] * 4
+
+        recommendations.append({
+            **destination,
+            "score": round(score, 1)
+        })
+
+    recommendations.sort(
+        key=lambda destination: destination["score"],
+        reverse=True
+    )
+
+    return {
+        "location": "Yaoundé",
+        "user": {
+            "id": current_user["id"],
+            "name": current_user["name"]
+        },
+        "recommendations": recommendations
+    }

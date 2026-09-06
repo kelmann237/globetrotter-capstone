@@ -1,21 +1,45 @@
-"""
-app/main.py
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-Flask application entry point.
+from .auth import router as auth_router
+from .destinations import router as destinations_router
+from .itineraries import router as itineraries_router
+from .recommendations import router as recommendations_router
+from .favorites import router as favorites_router
 
-Run locally:
-    python app/main.py
+app = FastAPI(
+    title="GlobeTrotter Yaoundé API",
+    description="Travel assistant for discovering and planning trips in Yaoundé, Cameroon.",
+    version="1.0.0"
+)
 
-Or via Docker / docker-compose (see project root).
-"""
-import os
-from app import create_app
 
-app = create_app()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5174"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    # Enable debug mode only when explicitly requested (e.g. FLASK_DEBUG=1).
-    # Never enable debug in production – it exposes an interactive debugger.
-    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
-    app.run(host="0.0.0.0", port=port, debug=debug)
+
+app.include_router(auth_router)
+app.include_router(destinations_router)
+app.include_router(itineraries_router)
+app.include_router(recommendations_router)
+app.include_router(favorites_router)
+
+@app.get("/")
+def root():
+    return {
+        "message": "Welcome to GlobeTrotter Yaoundé API",
+        "version": "1.0.0",
+        "status": "running"
+    }
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy"
+    }

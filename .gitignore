@@ -24,11 +24,15 @@ build/
 # Docker
 .dockerignore
 
-# Data files (populated at runtime; keep only .gitkeep)
+# Data files
 data/*.json
+!data/data.json
 
 # IDE / editor
 .vscode/
 .idea/
 *.swp
 *.swo
+
+# Node
+node_modules/

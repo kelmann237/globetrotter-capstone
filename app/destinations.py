@@ -1,73 +1,51 @@
-"""
-app/destinations.py
+import json
+from pathlib import Path
 
-Destination search endpoint.
+from fastapi import APIRouter, HTTPException
 
-Routes
-------
-GET /destinations?q=paris&tag=food&continent=Europe
-    Returns destinations that match any of the provided query parameters.
-    All parameters are optional; omitting them returns the full catalogue.
-"""
-from flask import Blueprint, request, jsonify
+router = APIRouter(prefix="/destinations", tags=["Destinations"])
 
-from app.models import get_all_destinations
-
-destinations_bp = Blueprint("destinations", __name__)
+DATA_FILE = Path(__file__).parent.parent / "data" / "data.json"
 
 
-@destinations_bp.route("/destinations", methods=["GET"])
-def search_destinations():
-    """Search destinations by name keyword, tag, and/or continent.
+def load_data():
+    with open(DATA_FILE, "r", encoding="utf-8") as file:
+        return json.load(file)
 
-    Query parameters (all optional):
-        q          – free-text search against name, country, and description
-        tag        – filter by a single interest tag (e.g. "beach")
-        continent  – filter by continent name (e.g. "Europe")
-        max_cost   – filter by maximum average daily cost (integer)
 
-    Returns a JSON list of matching destination objects.
-    """
-    q = request.args.get("q", "").strip().lower()
-    tag = request.args.get("tag", "").strip().lower()
-    continent = request.args.get("continent", "").strip().lower()
-    max_cost_str = request.args.get("max_cost", "").strip()
+@router.get("/")
+def get_destinations(
+    category: str | None = None,
+    budget: str | None = None
+):
+    data = load_data()
 
-    max_cost = None
-    if max_cost_str:
-        try:
-            max_cost = int(max_cost_str)
-        except ValueError:
-            return jsonify({"error": "max_cost must be an integer"}), 400
+    destinations = data["destinations"]
 
-    destinations = get_all_destinations()
-    results = []
+    if category:
+        destinations = [
+            d for d in destinations
+            if d["category"].lower() == category.lower()
+        ]
 
-    for dest in destinations:
-        # Free-text filter
-        if q:
-            searchable = " ".join([
-                dest.get("name", ""),
-                dest.get("country", ""),
-                dest.get("description", ""),
-            ]).lower()
-            if q not in searchable:
-                continue
+    if budget:
+        destinations = [
+            d for d in destinations
+            if d["budget"].lower() == budget.lower()
+        ]
 
-        # Tag filter
-        if tag and tag not in [t.lower() for t in dest.get("tags", [])]:
-            continue
+    return destinations
 
-        # Continent filter
-        if continent and continent != dest.get("continent", "").lower():
-            continue
 
-        # Cost filter – skip destinations that have no cost information or exceed the limit
-        if max_cost is not None:
-            cost = dest.get("avg_cost_per_day")
-            if cost is None or cost > max_cost:
-                continue
+@router.get("/{destination_id}")
+def get_destination(destination_id: int):
+    data = load_data()
 
-        results.append(dest)
+    for destination in data["destinations"]:
+        if destination["id"] == destination_id:
+            return destination
 
-    return jsonify(results), 200
+    raise HTTPException(
+        status_code=404,
+        detail="Destination not found"
+    )

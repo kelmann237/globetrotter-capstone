@@ -1,0 +1,146 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Kelmann",
+      "email": "kelmann@gmail.com",
+      "password": "$2b$12$lNVbl4MA7f7G5Vk2fmvvxe25EhEraGCGcyEY87vWQVA6wXyePNb4W",
+      "preferences": []
+    },
+    {
+      "id": 2,
+      "name": "iam",
+      "email": "fossifozangkelmann@gmail.com",
+      "password": "$2b$12$WC4oTEhjIst3ZYUVUDMFb.xVo8RcNw4ZzzN.3LltivnKoptWSudFi",
+      "preferences": []
+    },
+    {
+      "id": 3,
+      "name": "pole",
+      "email": "pole@gmail.com",
+      "password": "$2b$12$AMNhjBWxfkPTfb8SOGhtOudRy5RsbJEJPzIiM6/s3DhedremVI/Ue",
+      "preferences": [
+        "Nature",
+        "Landmark"
+      ],
+      "budget": ""
+    },
+    {
+      "id": 4,
+      "name": "me",
+      "email": "me@gmail.com",
+      "password": "$2b$12$I/zILBrfEqfdOz3/ptSfqegHHdIpl7hh8FBcx1k5txd.qsEJfQ70q",
+      "preferences": [
+        "Nature"
+      ],
+      "budget": "high"
+    },
+    {
+      "id": 5,
+      "name": "string",
+      "email": "dodo@gmail.com",
+      "password": "$2b$12$XLlQQipbYpU/cv89TJVaOenih/5E.4kSvRG35FYTAoCQrmjMul5KG",
+      "preferences": [],
+      "budget": "string"
+    }
+  ],
+  "favorites": [],
+  "itineraries": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "title": "Weekend d\u00e9couverte de Yaound\u00e9",
+      "destination_ids": [
+        1,
+        2,
+        3
+      ],
+      "start_date": "2026-09-05",
+      "end_date": "2026-09-06"
+    },
+    {
+      "id": 2,
+      "user_id": 1,
+      "title": "vacation",
+      "destination_ids": [
+        2
+      ],
+      "start_date": "2026-11-29",
+      "end_date": "2027-12-01"
+    }
+  ],
+  "destinations": [
+    {
+      "id": 1,
+      "name": "National Museum of Cameroon",
+      "category": "Culture",
+      "description": "A major cultural and historical attraction in Yaound\u00e9 showcasing Cameroon's heritage.",
+      "location": "Centre-ville, Yaound\u00e9",
+      "latitude": 3.86047,
+      "longitude": 11.51556,
+      "budget": "low",
+      "rating": 4.5,
+      "image": "/images/national-museum.jpg"
+    },
+    {
+      "id": 2,
+      "name": "Mvog-Betsi Zoo",
+      "category": "Nature",
+      "description": "A zoological park where visitors can discover wildlife and enjoy a natural environment.",
+      "location": "Mvog-Betsi, Yaound\u00e9",
+      "latitude": 3.8649,
+      "longitude": 11.48719,
+      "budget": "low",
+      "rating": 4.2,
+      "image": "/images/mvog-betsi-zoo.jpg"
+    },
+    {
+      "id": 3,
+      "name": "Mont F\u00e9b\u00e9",
+      "category": "Nature",
+      "description": "One of the well-known hills of Yaound\u00e9 offering beautiful views of the city.",
+      "location": "Mont F\u00e9b\u00e9, Yaound\u00e9",
+      "latitude": 3.914,
+      "longitude": 11.489,
+      "budget": "medium",
+      "rating": 4.4,
+      "image": "/images/mont-febe.jpg"
+    },
+    {
+      "id": 4,
+      "name": "Bois Sainte Anastasie",
+      "category": "Nature",
+      "description": "A green recreational area in Yaound\u00e9 suitable for relaxation and outdoor activities.",
+      "location": "Yaound\u00e9",
+      "latitude": 3.871512,
+      "longitude": 11.514482,
+      "budget": "low",
+      "rating": 4.1,
+      "image": "/images/bois-sainte-anastasie.jpg"
+    },
+    {
+      "id": 5,
+      "name": "Blackitude Museum",
+      "category": "Culture",
+      "description": "A cultural museum dedicated to African and Cameroonian artistic heritage.",
+      "location": "Centre-ville, Yaound\u00e9",
+      "latitude": 3.86433,
+      "longitude": 11.51843,
+      "budget": "medium",
+      "rating": 4.3,
+      "image": "/images/blackitude-museum.jpg"
+    },
+    {
+      "id": 6,
+      "name": "Unity Palace",
+      "category": "Landmark",
+      "description": "An important political and architectural landmark in Yaound\u00e9.",
+      "location": "Etoudi, Yaound\u00e9",
+      "latitude": 3.9115669,
+      "longitude": 11.5145516,
+      "budget": "low",
+      "rating": 4.0,
+      "image": "/images/unity-palace.png"
+    }
+  ]
+}

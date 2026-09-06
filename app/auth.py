@@ -1,117 +1,91 @@
-"""
-app/auth.py
+import json
+from pathlib import Path
 
-User registration, login, and JWT handling.
-
-Routes
-------
-POST /register  – create a new user account
-POST /login     – authenticate and return a JWT token
-"""
-import uuid
-import datetime
-
-import jwt
-from flask import Blueprint, request, jsonify, current_app
-from werkzeug.security import generate_password_hash, check_password_hash
-
-from app.models import get_user_by_username, save_user
-
-auth_bp = Blueprint("auth", __name__)
+from fastapi import APIRouter, HTTPException
+from passlib.context import CryptContext
+from jose import jwt
+from .security import SECRET_KEY, ALGORITHM
+from .models import UserCreate, UserLogin
 
 
-# ---------------------------------------------------------------------------
-# Helper – JWT utilities
-# ---------------------------------------------------------------------------
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-def create_token(username: str, secret: str) -> str:
-    """Return a signed JWT for *username* valid for 24 hours."""
-    now = datetime.datetime.now(datetime.timezone.utc)
-    payload = {
-        "sub": username,
-        "iat": now,
-        "exp": now + datetime.timedelta(hours=24),
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+
+DATA_FILE = Path(__file__).parent.parent / "data" / "data.json"
+
+
+def load_data():
+    with open(DATA_FILE, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def save_data(data):
+    with open(DATA_FILE, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=2)
+
+
+@router.post("/register")
+def register(user: UserCreate):
+    data = load_data()
+
+    for existing_user in data["users"]:
+        if existing_user["email"] == user.email:
+            raise HTTPException(
+                status_code=400,
+                detail="Email already registered"
+            )
+
+    new_user = {
+    "id": len(data["users"]) + 1,
+    "name": user.name,
+    "email": user.email,
+    "password": pwd_context.hash(user.password),
+    "preferences": user.preferences,
+    "budget": user.budget
+}
+
+    data["users"].append(new_user)
+    save_data(data)
+
+    return {
+        "message": "User registered successfully",
+        "user_id": new_user["id"]
     }
-    return jwt.encode(payload, secret, algorithm="HS256")
 
 
-def decode_token(token: str, secret: str) -> dict:
-    """Decode and verify *token*. Raises jwt.PyJWTError on failure."""
-    return jwt.decode(token, secret, algorithms=["HS256"])
+@router.post("/login")
+def login(user: UserLogin):
+    data = load_data()
 
+    for existing_user in data["users"]:
+        if existing_user["email"] == user.email:
+            if not pwd_context.verify(
+                user.password,
+                existing_user["password"]
+            ):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid credentials"
+                )
 
-def get_current_user(request_obj) -> str | None:
-    """Extract and validate the JWT from the Authorization header.
+            token = jwt.encode(
+                {
+                    "sub": str(existing_user["id"]),
+                    "email": existing_user["email"]
+                },
+                SECRET_KEY,
+                algorithm=ALGORITHM
+            )
 
-    Returns the username (subject claim) or None if the token is missing /
-    invalid.
-    """
-    auth_header = request_obj.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return None
-    token = auth_header.split(" ", 1)[1]
-    try:
-        payload = decode_token(token, current_app.config["SECRET_KEY"])
-        return payload.get("sub")
-    except jwt.PyJWTError:
-        return None
+            return {
+                "access_token": token,
+                "token_type": "bearer"
+            }
 
-
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
-@auth_bp.route("/register", methods=["POST"])
-def register():
-    """Register a new user.
-
-    Expected JSON body:
-        { "username": "alice", "password": "s3cr3t", "preferences": ["beach", "food"] }
-
-    Returns 201 on success, 400 on validation errors, 409 if the username is
-    already taken.
-    """
-    data = request.get_json(silent=True) or {}
-    username = data.get("username", "").strip()
-    password = data.get("password", "")
-    preferences = data.get("preferences", [])  # optional list of interest tags
-
-    if not username or not password:
-        return jsonify({"error": "username and password are required"}), 400
-
-    if get_user_by_username(username):
-        return jsonify({"error": "username already exists"}), 409
-
-    user = {
-        "id": str(uuid.uuid4()),
-        "username": username,
-        # Store a Werkzeug password hash – never store plain-text passwords.
-        "password_hash": generate_password_hash(password),
-        "preferences": preferences,
-    }
-    save_user(user)
-    return jsonify({"message": "user registered successfully", "username": username}), 201
-
-
-@auth_bp.route("/login", methods=["POST"])
-def login():
-    """Authenticate a user and return a JWT.
-
-    Expected JSON body:
-        { "username": "alice", "password": "s3cr3t" }
-
-    Returns 200 with a token on success, 400/401 on failure.
-    """
-    data = request.get_json(silent=True) or {}
-    username = data.get("username", "").strip()
-    password = data.get("password", "")
-
-    if not username or not password:
-        return jsonify({"error": "username and password are required"}), 400
-
-    user = get_user_by_username(username)
-    if not user or not check_password_hash(user["password_hash"], password):
-        return jsonify({"error": "invalid credentials"}), 401
-
-    token = create_token(username, current_app.config["SECRET_KEY"])
-    return jsonify({"token": token}), 200
+    raise HTTPException(
+        status_code=401,
+        detail="Invalid credentials"
+    )

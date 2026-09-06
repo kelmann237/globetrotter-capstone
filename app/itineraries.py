@@ -1,80 +1,74 @@
-"""
-app/itineraries.py
+import json
+from pathlib import Path
 
-Create and list itineraries for the authenticated user.
+from fastapi import APIRouter, HTTPException, Depends
 
-Routes
-------
-POST /itineraries – create a new itinerary
-GET  /itineraries – list all itineraries for the logged-in user
-
-Both routes require a valid JWT in the Authorization header.
-"""
-import uuid
-import datetime
-
-from flask import Blueprint, request, jsonify
-
-from app.auth import get_current_user
-from app.models import get_itineraries_for_user, save_itinerary
-
-itineraries_bp = Blueprint("itineraries", __name__)
+from .models import ItineraryCreate
+from .security import get_current_user
 
 
-@itineraries_bp.route("/itineraries", methods=["POST"])
-def create_itinerary():
-    """Create a new itinerary for the authenticated user.
+router = APIRouter(
+    prefix="/itineraries",
+    tags=["Itineraries"]
+)
 
-    Expected JSON body:
-        {
-          "title": "Summer in Europe",
-          "destinations": ["Paris", "Rome"],
-          "start_date": "2025-06-01",
-          "end_date": "2025-06-15",
-          "notes": "Optional free-text notes"
-        }
+DATA_FILE = Path(__file__).parent.parent / "data" / "data.json"
 
-    Returns 201 with the created itinerary on success.
-    Requires: Authorization: ******
-    """
-    username = get_current_user(request)
-    if not username:
-        return jsonify({"error": "authentication required"}), 401
 
-    data = request.get_json(silent=True) or {}
-    title = data.get("title", "").strip()
-    destinations = data.get("destinations", [])
+def load_data():
+    with open(DATA_FILE, "r", encoding="utf-8") as file:
+        return json.load(file)
 
-    if not title:
-        return jsonify({"error": "title is required"}), 400
 
-    if not isinstance(destinations, list):
-        return jsonify({"error": "destinations must be a list"}), 400
+def save_data(data):
+    with open(DATA_FILE, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=2)
 
-    itinerary = {
-        "id": str(uuid.uuid4()),
-        "username": username,
-        "title": title,
-        "destinations": destinations,
-        "start_date": data.get("start_date", ""),
-        "end_date": data.get("end_date", ""),
-        "notes": data.get("notes", ""),
-        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+
+@router.post("/")
+def create_itinerary(
+    itinerary: ItineraryCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    data = load_data()
+
+    for destination_id in itinerary.destination_ids:
+        exists = any(
+            d["id"] == destination_id
+            for d in data["destinations"]
+        )
+
+        if not exists:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Destination {destination_id} not found"
+            )
+
+    new_itinerary = {
+        "id": len(data["itineraries"]) + 1,
+        "user_id": current_user["id"],
+        "title": itinerary.title,
+        "destination_ids": itinerary.destination_ids,
+        "start_date": itinerary.start_date,
+        "end_date": itinerary.end_date
     }
-    save_itinerary(itinerary)
-    return jsonify(itinerary), 201
+
+    data["itineraries"].append(new_itinerary)
+    save_data(data)
+
+    return new_itinerary
 
 
-@itineraries_bp.route("/itineraries", methods=["GET"])
-def list_itineraries():
-    """List all itineraries for the authenticated user.
+@router.get("/")
+def get_itineraries(
+    current_user: dict = Depends(get_current_user)
+):
+    data = load_data()
 
-    Returns 200 with a JSON array of itinerary objects.
-    Requires: Authorization: ******
-    """
-    username = get_current_user(request)
-    if not username:
-        return jsonify({"error": "authentication required"}), 401
+    itineraries = [
+        itinerary
+        for itinerary in data["itineraries"]
+        if itinerary["user_id"] == current_user["id"]
+    ]
 
-    itineraries = get_itineraries_for_user(username)
-    return jsonify(itineraries), 200
+    return itineraries
