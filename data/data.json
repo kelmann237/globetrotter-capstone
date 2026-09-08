@@ -67,6 +67,16 @@
       ],
       "start_date": "2026-11-29",
       "end_date": "2027-12-01"
+    },
+    {
+      "id": 3,
+      "user_id": 4,
+      "title": "yo",
+      "destination_ids": [
+        6
+      ],
+      "start_date": "2026-11-22",
+      "end_date": "2026-12-22"
     }
   ],
   "destinations": [

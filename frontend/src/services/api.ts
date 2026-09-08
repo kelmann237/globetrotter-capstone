@@ -1,7 +1,9 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000",
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    "http://127.0.0.1:8000",
   headers: {
     "Content-Type": "application/json",
   },
@@ -46,6 +48,7 @@ export const registerUser = async (
 
   return response.data;
 };
+
 export const loginUser = async (
   email: string,
   password: string
@@ -96,8 +99,6 @@ export const getItineraries = async () => {
   return response.data;
 };
 
-export default api;
-
 export const getFavorites = async () => {
   const token = localStorage.getItem("access_token");
 
@@ -109,7 +110,6 @@ export const getFavorites = async () => {
 
   return response.data;
 };
-
 
 export const addFavorite = async (destinationId: number) => {
   const token = localStorage.getItem("access_token");
@@ -127,7 +127,6 @@ export const addFavorite = async (destinationId: number) => {
   return response.data;
 };
 
-
 export const removeFavorite = async (destinationId: number) => {
   const token = localStorage.getItem("access_token");
 
@@ -142,3 +141,5 @@ export const removeFavorite = async (destinationId: number) => {
 
   return response.data;
 };
+
+export default api;

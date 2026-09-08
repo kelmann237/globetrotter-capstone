@@ -1,20 +1,16 @@
 # Use an official lightweight Python runtime as the base image
-FROM python:3.9-slim
-
-# Set a working directory inside the container
+FROM python:3.11-slim
+# Set the working directory
 WORKDIR /globetrotter
 
-# Copy dependency file first to leverage Docker layer caching
+# Copy dependency file
 COPY requirements.txt .
 
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application source code
+# Copy application source code
 COPY . .
 
-# Expose the port the app runs on
-EXPOSE 5000
-
-# Run the application
-CMD ["python", "app/main.py"]
+# Run FastAPI with Uvicorn
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

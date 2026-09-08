@@ -22,7 +22,6 @@ build/
 .env.*
 
 # Docker
-.dockerignore
 
 # Data files
 data/*.json
